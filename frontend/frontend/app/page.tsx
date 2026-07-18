@@ -232,7 +232,7 @@ export default function LandingPage() {
           Give every student a tutor that actually notices them.
         </h2>
         <a
-          href="/register"
+          href="/auth/register"
           className="inline-block px-7 py-3.5 rounded-full bg-[#2DD4BF] text-[#1B1035] font-body font-semibold hover:bg-[#5EEAD4] transition-colors"
         >
           Create your free account
