@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.interface.dependencies.get_db import get_db
 from app.applications.dto.auth_dto import (
     RegisterRequest, LoginRequest, VerifyOtpRequest, ResendOtpRequest,
-    TokenResponse, LoginResponse,
+    TokenResponse, LoginResponse,UserResponse, 
 )
 from app.applications.use_cases.auth.register_user import register_user
 from app.applications.use_cases.auth.login_user import login_user
@@ -38,6 +38,12 @@ def verify_register_otp(request: Request, payload: VerifyOtpRequest, db: Session
     return TokenResponse(
         access_token=create_access_token(str(user.id), user.role),
         refresh_token=create_refresh_token(str(user.id)),
+        user={
+        "id": str(user.id),
+        "name": user.name,
+        "email": user.email,
+        "role": user.role.value,
+    },
     )
 
 @router.post("/verify-login-otp", response_model=TokenResponse)
@@ -47,6 +53,12 @@ def verify_login_otp(request: Request, payload: VerifyOtpRequest, db: Session = 
     return TokenResponse(
         access_token=create_access_token(str(user.id), user.role),
         refresh_token=create_refresh_token(str(user.id)),
+          user={
+        "id": str(user.id),
+        "name": user.name,
+        "email": user.email,
+        "role": user.role.value,
+    },
     )
 
 @router.post("/resend-otp")

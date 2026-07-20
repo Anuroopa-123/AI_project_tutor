@@ -16,11 +16,19 @@ class VerifyOtpRequest(BaseModel):
 class ResendOtpRequest(BaseModel):
     email: EmailStr
     purpose: str
+    
+    
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    email: EmailStr
+    role: str
 
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user: UserResponse
 
 class LoginResponse(BaseModel):
     otp_required: bool
