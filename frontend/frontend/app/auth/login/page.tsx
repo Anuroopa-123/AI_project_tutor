@@ -4,18 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/app/components/auth/AuthShell";
 
+
+
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -23,11 +27,32 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Login failed");
 
-      if (data.otp_required) {
-        router.push(`/verify-otp?email=${encodeURIComponent(form.email)}&purpose=login`);
-      } else {
-        router.push("/dashboard");
-      }
+     if (data.otp_required) {
+  router.push(
+    `/auth/verify-otp?email=${encodeURIComponent(form.email)}&purpose=login`
+  );
+} else {
+  switch (data.user.role) {
+    case "SUPER_ADMIN":
+      router.push("/super-admin/superadmindashboard");
+      break;
+
+    case "ADMIN":
+      router.push("/admin/dashboard");
+      break;
+
+    case "TEACHER":
+      router.push("/teacher/dashboard");
+      break;
+
+    case "STUDENT":
+      router.push("/student/dashboard");
+      break;
+
+    default:
+      router.push("/");
+  }
+}
     } catch (err: any) {
       setError(err.message);
     } finally {

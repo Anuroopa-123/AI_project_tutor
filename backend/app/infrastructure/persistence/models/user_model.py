@@ -2,7 +2,8 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-
+from sqlalchemy import Enum
+from app.domain.entities.user import UserRole
 from app.infrastructure.persistence.database import Base
 
 
@@ -21,7 +22,11 @@ class UserModel(Base):
 
     password_hash = Column(String(255), nullable=False)
 
-    role = Column(String(50), nullable=False, default="STUDENT")
+    role = Column(
+    Enum(UserRole, name="role_enum"),
+    nullable=False,
+    default=UserRole.STUDENT,
+)
 
     is_verified = Column(Boolean, default=False)
 

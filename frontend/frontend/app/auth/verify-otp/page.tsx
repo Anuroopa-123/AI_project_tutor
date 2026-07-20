@@ -38,9 +38,33 @@ const endpoint =
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: code }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Invalid code");
-      router.push("/dashboard");
+    const data = await res.json();
+    console.log("OTP Response:", data);
+
+if (!res.ok) {
+  throw new Error(data.detail || "Invalid code");
+}
+
+switch (data.user.role) {
+  case "SUPER_ADMIN":
+    router.push("/super-admin/superadmindashboard");
+    break;
+
+  case "ADMIN":
+    router.push("/admin/dashboard");
+    break;
+
+  case "TEACHER":
+    router.push("/teacher/dashboard");
+    break;
+
+  case "STUDENT":
+    router.push("/student/dashboard");
+    break;
+
+  default:
+    router.push("/");
+}
     } catch (err: any) {
       setError(err.message);
     } finally {
