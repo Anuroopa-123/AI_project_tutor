@@ -3,3 +3,33 @@
 /node_modules
 
 .env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python
+venv/
+backend/venv/
+
+# Python
+venv/
+backend/venv/
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+.env.local
+
+# VS Code
+.vscode/
+
+# Node
+node_modules/
+.next/
