@@ -43,7 +43,7 @@ const FEATURES = [
 ];
 
 export default function LandingPage() {
-  const animControllerRef = useRef<AnimationController | null>(null);
+  const animControllerRef = useRef(new AnimationController());
   const tourControllerRef = useRef<TourController | null>(null);
 
   const [tourStep, setTourStep] = useState<number | null>(null);

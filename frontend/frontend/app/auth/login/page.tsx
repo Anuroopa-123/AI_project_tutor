@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/app/components/auth/AuthShell";
-
-
+import { saveSession, roleHomePath } from "@/app/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,47 +11,43 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+     const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const res = await fetch(`${API_URL}/api/auth/login`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(form),
+});
       const data = await res.json();
+      console.log("Login Response:", data);
       if (!res.ok) throw new Error(data.detail || "Login failed");
 
-     if (data.otp_required) {
-  router.push(
-    `/auth/verify-otp?email=${encodeURIComponent(form.email)}&purpose=login`
-  );
-} else {
-  switch (data.user.role) {
-    case "SUPER_ADMIN":
-      router.push("/super-admin/superadmindashboard");
-      break;
+if (data.otp_required) {
+  // Store email so OTP page knows which account to verify
+  sessionStorage.setItem("login_email", form.email);
 
-    case "ADMIN":
-      router.push("/admin/dashboard");
-      break;
-
-    case "TEACHER":
-      router.push("/teacher/dashboard");
-      break;
-
-    case "STUDENT":
-      router.push("/student/dashboard");
-      break;
-
-    default:
-      router.push("/");
-  }
+  router.push("/auth/verify-otp");
+  return;
 }
+
+// Login success
+saveSession(
+  data.access_token,
+  data.refresh_token,
+  data.user
+);
+
+const path = roleHomePath(data.user.role);
+console.log("Redirecting to:", path);
+
+router.push(path);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -86,12 +81,7 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <div className="flex justify-between items-center mb-1.5">
-            <label className="block font-body text-xs text-[#A78BCA]">Password</label>
-            <a href="/forgot-password" className="font-body text-xs text-[#2DD4BF] hover:underline">
-              Forgot?
-            </a>
-          </div>
+          <label className="block font-body text-xs text-[#A78BCA] mb-1.5">Password</label>
           <input
             type="password"
             required
@@ -102,9 +92,7 @@ export default function LoginPage() {
           />
         </div>
 
-        {error && (
-          <p className="font-body text-sm text-[#FBBF24]">{error}</p>
-        )}
+        {error && <p className="font-body text-sm text-[#FBBF24]">{error}</p>}
 
         <button
           type="submit"

@@ -13,6 +13,12 @@ class VerifyOtpRequest(BaseModel):
     email: EmailStr
     otp: str = Field(min_length=6, max_length=6)
 
+class UserOut(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: str
+
 class ResendOtpRequest(BaseModel):
     email: EmailStr
     purpose: str

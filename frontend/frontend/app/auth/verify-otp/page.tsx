@@ -4,12 +4,13 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthShell from "@/app/components/auth/AuthShell";
 import OtpInput from "@/app/components/auth/OtpInput";
+import { saveSession, roleHomePath } from "@/app/lib/auth";
 
 function VerifyOtpForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") || "";
-  const purpose = params.get("purpose") || "register"; // "register" | "login"
+  const purpose = params.get("purpose") || "register";
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,49 +23,20 @@ function VerifyOtpForm() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  const API = process.env.NEXT_PUBLIC_API_URL;
-
-const endpoint =
-  purpose === "login"
-    ? `${API}/api/auth/verify-login-otp`
-    : `${API}/api/auth/verify-otp`;
-
   const handleVerify = async (code: string) => {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp: code }),
       });
-    const data = await res.json();
-    console.log("OTP Response:", data);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Invalid code");
 
-if (!res.ok) {
-  throw new Error(data.detail || "Invalid code");
-}
-
-switch (data.user.role) {
-  case "SUPER_ADMIN":
-    router.push("/super-admin/superadmindashboard");
-    break;
-
-  case "ADMIN":
-    router.push("/admin/dashboard");
-    break;
-
-  case "TEACHER":
-    router.push("/teacher/dashboard");
-    break;
-
-  case "STUDENT":
-    router.push("/student/dashboard");
-    break;
-
-  default:
-    router.push("/");
-}
+      saveSession(data.access_token, data.refresh_token, data.user);
+      router.push(roleHomePath(data.user.role));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -76,7 +48,7 @@ switch (data.user.role) {
     if (cooldown > 0) return;
     setError("");
     try {
-      const res = await fetch(`${API}/api/auth/resend-otp`, {
+      const res = await fetch("/api/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, purpose }),
@@ -94,7 +66,7 @@ switch (data.user.role) {
 
   return (
     <AuthShell
-      eyebrow={purpose === "login" ? "SECURITY CHECK" : "STEP 2 OF 2"}
+      eyebrow="STEP 2 OF 2"
       title="Enter verification code"
       subtitle={`We sent a 6-digit code to ${email || "your email"}.`}
     >
@@ -102,12 +74,8 @@ switch (data.user.role) {
         <OtpInput onComplete={handleVerify} />
       </div>
 
-      {error && (
-        <p className="font-body text-sm text-[#FBBF24] mt-4">{error}</p>
-      )}
-      {loading && (
-        <p className="font-mono text-xs text-[#A78BCA] mt-4">Verifying…</p>
-      )}
+      {error && <p className="font-body text-sm text-[#FBBF24] mt-4">{error}</p>}
+      {loading && <p className="font-mono text-xs text-[#A78BCA] mt-4">Verifying…</p>}
 
       <button
         onClick={handleResend}

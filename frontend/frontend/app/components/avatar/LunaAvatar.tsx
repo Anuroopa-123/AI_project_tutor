@@ -133,6 +133,7 @@ export default function LunaAvatar({
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
+    console.log(animController);
 
     const { position, rotationY } = animController.update(
       delta,
