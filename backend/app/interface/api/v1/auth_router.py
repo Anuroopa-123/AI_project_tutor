@@ -25,11 +25,21 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     register_user(db, payload.name, payload.email, payload.password)
     return {"message": "OTP sent to your email"}
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
 def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
-    login_user(db, payload.email, payload.password)
-    return LoginResponse(otp_required=True)
+    user = login_user(db, payload.email, payload.password)
+
+    return TokenResponse(
+        access_token=create_access_token(str(user.id), user.role),
+        refresh_token=create_refresh_token(str(user.id)),
+        user={
+            "id": str(user.id),
+            "name": user.name,
+            "email": user.email,
+            "role": user.role.value,
+        },
+    )
 
 @router.post("/verify-otp", response_model=TokenResponse)
 @limiter.limit("5/minute")

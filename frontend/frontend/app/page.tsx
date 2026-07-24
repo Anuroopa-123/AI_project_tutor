@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import dynamic from "next/dynamic";
+import { AnimationController } from "./components/avatar/AnimationController";
+import { TourController } from "./components/avatar/TourController";
+import { SpeechController, TOUR_STEPS } from "./components/avatar/SpeechController";
 
-// ── EduSense Landing Page ────────────────────────────────────────────────
-// Design tokens
-// Color   : #1B1035 (base) · #2A1B54 (surface) · #2DD4BF (focus teal)
-//           #FBBF24 (attention amber) · #F5F3FF (text) · #A78BCA (muted)
-// Type    : Space Grotesk (display) · Inter (body) · JetBrains Mono (data)
-// Signature: live "attention pulse" ring — the product's own monitoring
-//            loop, rendered as the hero's centerpiece.
-// ──────────────────────────────────────────────────────────────────────────
+const AvatarCanvas = dynamic(() => import("./components/avatar/AvatarCanvas"), {
+  ssr: false,
+});
 
 const PIPELINE = [
   { step: "01", label: "Watch", detail: "Student streams the lesson video." },
@@ -44,50 +43,49 @@ const FEATURES = [
 ];
 
 export default function LandingPage() {
-  const [score, setScore] = useState(62);
+  const animControllerRef = useRef(new AnimationController());
+  const tourControllerRef = useRef<TourController | null>(null);
+
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  const [currentDialogue, setCurrentDialogue] = useState<string>("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [chatBotOpen, setChatBotOpen] = useState(false);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setScore((s) => {
-        const next = s + (Math.random() * 10 - 4);
-        return Math.max(58, Math.min(96, Math.round(next)));
-      });
-    }, 1800);
-    return () => clearInterval(id);
+    const animCtrl = new AnimationController();
+    const tourCtrl = new TourController(animCtrl);
+
+    animControllerRef.current = animCtrl;
+    tourControllerRef.current = tourCtrl;
+
+    const unsubTour = tourCtrl.subscribe((step, script) => {
+      setTourStep(step);
+      if (script) setCurrentDialogue(script.text);
+    });
+
+    const speechCtrl = SpeechController.getInstance();
+    const unsubSpeech = speechCtrl.subscribe((speaking) => setIsSpeaking(speaking));
+
+    return () => {
+      unsubTour();
+      unsubSpeech();
+    };
   }, []);
 
+  const handleNextTourStep = () => tourControllerRef.current?.nextStep();
+  const handleSkipTour = () => tourControllerRef.current?.skipTour();
+
   return (
-    <div className="min-h-screen bg-[#1B1035] text-[#F5F3FF] overflow-x-hidden">
+    <div className="min-h-screen bg-[#1B1035] text-[#F5F3FF] overflow-x-hidden relative font-body">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
         .font-display { font-family: 'Space Grotesk', sans-serif; }
         .font-body { font-family: 'Inter', sans-serif; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-        @keyframes pulse-ring {
-          0%   { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.35); }
-          70%  { box-shadow: 0 0 0 22px rgba(45, 212, 191, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
-        }
-        .ring-pulse { animation: pulse-ring 2.6s cubic-bezier(0.4,0,0.6,1) infinite; }
-
-        @keyframes drift {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        .drift { animation: drift 6s ease-in-out infinite; }
-
-        @keyframes sweep {
-          0% { transform: translateY(-100%); opacity: 0; }
-          15% { opacity: 1; }
-          85% { opacity: 1; }
-          100% { transform: translateY(220%); opacity: 0; }
-        }
-        .scan-line { animation: sweep 3.2s ease-in-out infinite; }
       `}</style>
 
-      {/* ── Nav ── */}
-      <nav className="max-w-6xl mx-auto flex items-center justify-between px-6 py-6">
+      {/* ── Nav — floats over the full-bleed hero canvas ── */}
+      <nav className="absolute top-0 left-0 right-0 z-30 max-w-6xl mx-auto flex items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2 font-display font-semibold text-lg tracking-tight">
           <span className="w-2.5 h-2.5 rounded-full bg-[#2DD4BF]" />
           EduSense
@@ -97,92 +95,64 @@ export default function LandingPage() {
           <a href="#features" className="hover:text-[#F5F3FF] transition-colors">Features</a>
         </div>
         <div className="flex items-center gap-3 font-body text-sm">
-          <a href="/login" className="px-4 py-2 text-[#F5F3FF] hover:text-[#2DD4BF] transition-colors">
-            Log in
-          </a>
-          <a
-            href="/register"
-            className="px-4 py-2 rounded-full bg-[#2DD4BF] text-[#1B1035] font-semibold hover:bg-[#5EEAD4] transition-colors"
-          >
-            Get started
-          </a>
+          <a href="/auth/login" className="px-4 py-2 text-[#F5F3FF] hover:text-[#2DD4BF] transition-colors">Log in</a>
+          <a href="/auth/register" className="px-4 py-2 rounded-full bg-[#2DD4BF] text-[#1B1035] font-semibold hover:bg-[#5EEAD4] transition-colors shadow-lg">Get started</a>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-28 grid md:grid-cols-2 gap-14 items-center">
-        <div>
-          <div className="inline-flex items-center gap-2 font-mono text-xs text-[#A78BCA] border border-[#3D2B6B] rounded-full px-3 py-1 mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24]" />
-            NOW MONITORING · LIVE SESSION
-          </div>
-          <h1 className="font-display font-semibold text-5xl md:text-6xl leading-[1.05] tracking-tight mb-6">
-            An AI tutor that notices
-            <span className="text-[#2DD4BF]"> when you stop paying attention.</span>
-          </h1>
-          <p className="font-body text-lg text-[#C9BEEA] max-w-lg mb-9 leading-relaxed">
-            EduSense watches attention through the webcam, answers doubts only from your teacher's own notes,
-            and quietly flags who's at risk — before the exam does.
-          </p>
-          <div className="flex flex-wrap items-center gap-4">
-            <a
-              href="/register"
-              className="px-6 py-3 rounded-full bg-[#FBBF24] text-[#1B1035] font-body font-semibold hover:bg-[#FCD34D] transition-colors"
-            >
-              Start learning
-            </a>
-            <a
-              href="#pipeline"
-              className="px-6 py-3 rounded-full border border-[#3D2B6B] text-[#F5F3FF] font-body hover:border-[#2DD4BF] transition-colors"
-            >
-              See how it works
-            </a>
-          </div>
-        </div>
+      {/* ── Hero: avatar only, full-bleed ──
+          No headline, no copy, no CTA, no score card — per your ask.
+          The 3D canvas IS the hero. */}
+      <section className="relative w-full h-screen">
+        <AvatarCanvas animController={animControllerRef.current!} modelUrl="/avatar/AvatarSample_A.vrm" />
 
-        {/* Signature element: live attention pulse */}
-        <div className="relative flex items-center justify-center">
-          <div className="absolute w-72 h-72 rounded-full bg-[#2DD4BF]/10 blur-3xl drift" />
-          <div className="relative w-80 bg-[#2A1B54] border border-[#3D2B6B] rounded-3xl p-7 overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#2DD4BF] to-transparent scan-line" />
-            <div className="flex items-center justify-between mb-6">
-              <span className="font-mono text-xs text-[#A78BCA]">SESSION_04A2</span>
-              <span className="font-mono text-xs text-[#FBBF24]">● REC</span>
-            </div>
-
-            <div className="flex justify-center mb-6">
-              <div className="relative w-32 h-32 rounded-full border-2 border-[#2DD4BF] ring-pulse flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-16 h-16 text-[#F5F3FF]">
-                  <circle cx="50" cy="38" r="18" fill="none" stroke="currentColor" strokeWidth="3" />
-                  <path d="M20 88 Q50 58 80 88" fill="none" stroke="currentColor" strokeWidth="3" />
-                </svg>
+        {tourStep !== null && currentDialogue && (
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-6">
+            <div className="relative bg-[#2A1B54]/95 backdrop-blur-md border border-[#3D2B6B] text-[#F5F3FF] p-5 rounded-2xl shadow-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5B21B6] to-[#2DD4BF] flex items-center justify-center text-xs font-display font-semibold shrink-0">
+                  L
+                </div>
+                <div className="leading-tight">
+                  <div className="font-display font-semibold text-sm flex items-center gap-2">
+                    Luna
+                    {isSpeaking && (
+                      <span className="inline-flex gap-1 items-center">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4BF] animate-ping" />
+                        <span className="text-[10px] text-[#2DD4BF] font-mono">SPEAKING</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-mono text-[10px] text-[#A78BCA]">EduSense AI 3D Tutor</div>
+                </div>
               </div>
-            </div>
-
-            <div className="text-center mb-5">
-              <div className="font-mono text-4xl font-semibold text-[#2DD4BF] tabular-nums">
-                {score}%
-              </div>
-              <div className="font-body text-xs text-[#A78BCA] mt-1">Attention score</div>
-            </div>
-
-            <div className="space-y-2 font-mono text-xs">
-              <div className="flex justify-between text-[#C9BEEA]">
-                <span>Head pose</span><span className="text-[#2DD4BF]">forward</span>
-              </div>
-              <div className="flex justify-between text-[#C9BEEA]">
-                <span>Blink rate</span><span className="text-[#2DD4BF]">normal</span>
-              </div>
-              <div className="flex justify-between text-[#C9BEEA]">
-                <span>Faces detected</span><span className="text-[#2DD4BF]">1</span>
+              <p className="text-sm leading-relaxed mb-4 font-medium">{currentDialogue}</p>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[#A78BCA] font-mono">Step {tourStep} of 5</span>
+                <div className="flex gap-2">
+                  <button onClick={handleSkipTour} className="px-3 py-1 text-xs text-[#A78BCA] hover:text-[#F5F3FF] transition-colors">
+                    Skip
+                  </button>
+                  <button
+                    onClick={handleNextTourStep}
+                    className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[#2DD4BF] text-[#1B1035] hover:bg-[#5EEAD4] transition-all shadow-md"
+                  >
+                    {tourStep === 5 ? "Finish!" : "Next Step →"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </section>
 
-      {/* ── Pipeline ── */}
-      <section id="pipeline" className="max-w-6xl mx-auto px-6 py-24 border-t border-[#2A1B54]">
+      {/* ── Pipeline Section ── */}
+      <section
+        id="pipeline"
+        className={`max-w-6xl mx-auto px-6 py-24 border-t border-[#2A1B54] transition-all duration-300 ${
+          tourStep === 2 ? "ring-4 ring-[#2DD4BF] bg-[#2A1B54]/20 rounded-3xl z-20" : ""
+        }`}
+      >
         <div className="mb-14 max-w-xl">
           <span className="font-mono text-xs text-[#FBBF24]">THE LOOP</span>
           <h2 className="font-display font-semibold text-3xl md:text-4xl mt-3 tracking-tight">
@@ -200,8 +170,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section id="features" className="max-w-6xl mx-auto px-6 py-24 border-t border-[#2A1B54]">
+      {/* ── Features Section ── */}
+      <section
+        id="features"
+        className={`max-w-6xl mx-auto px-6 py-24 border-t border-[#2A1B54] transition-all duration-300 ${
+          tourStep === 3 ? "ring-4 ring-[#2DD4BF] bg-[#2A1B54]/20 rounded-3xl z-20" : ""
+        }`}
+      >
         <div className="mb-14 max-w-xl">
           <span className="font-mono text-xs text-[#2DD4BF]">UNDER THE HOOD</span>
           <h2 className="font-display font-semibold text-3xl md:text-4xl mt-3 tracking-tight">
@@ -210,15 +185,8 @@ export default function LandingPage() {
         </div>
         <div className="grid sm:grid-cols-2 gap-6">
           {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="bg-[#2A1B54] border border-[#3D2B6B] rounded-2xl p-7 hover:border-[#2DD4BF]/50 transition-colors"
-            >
-              <div
-                className={`w-9 h-9 rounded-lg mb-5 ${
-                  f.accent === "teal" ? "bg-[#2DD4BF]/15" : "bg-[#FBBF24]/15"
-                }`}
-              />
+            <div key={f.title} className="bg-[#2A1B54] border border-[#3D2B6B] rounded-2xl p-7 hover:border-[#2DD4BF]/50 transition-colors shadow-sm">
+              <div className={`w-9 h-9 rounded-lg mb-5 ${f.accent === "teal" ? "bg-[#2DD4BF]/15" : "bg-[#FBBF24]/15"}`} />
               <h3 className="font-display font-semibold text-xl mb-2">{f.title}</h3>
               <p className="font-body text-sm text-[#A78BCA] leading-relaxed">{f.body}</p>
             </div>
@@ -226,25 +194,68 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="max-w-6xl mx-auto px-6 py-24 border-t border-[#2A1B54] text-center">
+      {/* ── CTA / Registration Section ── */}
+      <section
+        className={`max-w-6xl mx-auto px-6 py-24 border-t border-[#2A1B54] text-center transition-all duration-300 ${
+          tourStep === 5 ? "ring-4 ring-[#FBBF24] bg-[#2A1B54]/30 rounded-3xl z-20" : ""
+        }`}
+      >
         <h2 className="font-display font-semibold text-3xl md:text-4xl tracking-tight mb-6 max-w-2xl mx-auto">
           Give every student a tutor that actually notices them.
         </h2>
-        <a
-          href="/auth/register"
-          className="inline-block px-7 py-3.5 rounded-full bg-[#2DD4BF] text-[#1B1035] font-body font-semibold hover:bg-[#5EEAD4] transition-colors"
-        >
+        <a href="/auth/register" className="inline-block px-7 py-3.5 rounded-full bg-[#2DD4BF] text-[#1B1035] font-body font-semibold hover:bg-[#5EEAD4] transition-colors shadow-xl">
           Create your free account
         </a>
       </section>
+
+      {/* ── RAG Chatbot Widget Mockup ── */}
+      <div
+        className={`fixed bottom-6 left-6 z-40 transition-all duration-300 ${
+          tourStep === 4 ? "ring-4 ring-[#2DD4BF] scale-105" : ""
+        }`}
+      >
+        {chatBotOpen ? (
+          <div className="w-80 bg-[#2A1B54] border border-[#3D2B6B] rounded-2xl shadow-2xl overflow-hidden flex flex-col font-body">
+            <div className="bg-[#1B1035] p-4 border-b border-[#3D2B6B] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#2DD4BF] animate-pulse" />
+                <span className="text-xs font-mono font-semibold text-[#F5F3FF]">Luna · Knowledge Bot</span>
+              </div>
+              <button onClick={() => setChatBotOpen(false)} className="text-[#A78BCA] hover:text-[#F5F3FF] text-xs font-mono">✕</button>
+            </div>
+            <div className="h-48 p-4 overflow-y-auto space-y-3 text-xs font-body">
+              <div className="bg-[#1B1035] p-3 rounded-xl max-w-[85%] text-[#A78BCA]">
+                Upload class notes or PDFs. I answer questions based strictly on your source materials!
+              </div>
+              <div className="bg-[#2DD4BF]/10 border border-[#2DD4BF]/20 p-3 rounded-xl max-w-[85%] ml-auto text-right text-[#F5F3FF]">
+                What is linear regression?
+              </div>
+              <div className="bg-[#1B1035] p-3 rounded-xl max-w-[85%] text-[#2DD4BF] font-medium">
+                According to Chapter 2 (Page 14): It calculates the linear relationship between variables using line equations...
+              </div>
+            </div>
+            <div className="p-3 border-t border-[#3D2B6B] bg-[#1B1035] flex gap-2">
+              <input
+                type="text"
+                placeholder="Ask about your course materials..."
+                disabled
+                className="bg-[#2A1B54] border border-[#3D2B6B] rounded-lg px-3 py-1.5 text-xs text-[#A78BCA] w-full focus:outline-none"
+              />
+              <button className="bg-[#3D2B6B] text-[#F5F3FF] px-3 rounded-lg text-xs font-semibold">Send</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setChatBotOpen(true)} className="w-12 h-12 rounded-full bg-[#2DD4BF] text-[#1B1035] flex items-center justify-center font-bold text-lg shadow-2xl hover:bg-[#5EEAD4] transition-all transform hover:scale-110">
+            💬
+          </button>
+        )}
+      </div>
 
       {/* ── Footer ── */}
       <footer className="border-t border-[#2A1B54]">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 font-display font-semibold">
-            <span className="w-2 h-2 rounded-full bg-[#2DD4BF]" />
-            EduSense
+            <span className="w-2 h-2 rounded-full bg-[#2DD4BF]" /> EduSense
           </div>
           <p className="font-mono text-xs text-[#A78BCA]">© 2026 EduSense. Built to notice.</p>
         </div>
