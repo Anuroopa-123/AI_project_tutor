@@ -1,5 +1,7 @@
-import Scene1Space from "./components/scenes/Scene1Space";
+"use client";
+
+import SceneController from "./components/scenes/SceneController";
 
 export default function Home() {
-  return <Scene1Space />;
+  return <SceneController />;
 }
